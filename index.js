@@ -168,9 +168,15 @@ module.exports = function(content) {
 			if (index != array.length -1) {
 				additional += ",";
 			}
-			var url = loaderUtils.isUrlRequest(cV.value, root)
-				? '" + require(' + JSON.stringify(loaderUtils.urlToRequest(cV.value, root)) + ') + "'
-				: cV.value;
+
+			if (loaderUtils.isUrlRequest(cV.value, root)) {
+				var url = '" + function () { try { return require('
+					+ JSON.stringify(loaderUtils.urlToRequest(cV.value, root))
+					+ ') } catch (e) { return '
+					+ JSON.stringify(cV.value) + ' }}() + "';
+			} else {
+				var url = cV.value;
+			}
 
 			return pV + url + hash + additional;
 		},"");
