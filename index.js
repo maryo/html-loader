@@ -71,7 +71,7 @@ module.exports = function(content) {
 				value: valueArray.shift(),
 				additional: valueArray,
 			};
-			if(!loaderUtils.isUrlRequest(obj.value, root)) return;
+			if(!loaderUtils.isUrlRequest(obj.value, root)) return obj;
 			var uri = url.parse(obj.value);
 			if (uri.hash !== null && uri.hash !== undefined) {
 				obj.hash = uri.hash;
@@ -163,14 +163,16 @@ module.exports = function(content) {
 	return exportsString + content.replace(/xxxHTMLLINKxxx[0-9\.]+xxx/g, function(match) {
 		if(!data[match]) return match;
 		return data[match].reduce(function (pV,cV, index, array) {
-
 			var hash = cV.hash || "";
 			var additional = cV.additional.length != 0 ? " " + cV.additional.join(" ") : "";
 			if (index != array.length -1) {
 				additional += ",";
 			}
-			return pV + '" + require(' + JSON.stringify(loaderUtils.urlToRequest(cV.value, root)) + ') + "' + hash + additional;
+			var url = loaderUtils.isUrlRequest(cV.value, root)
+				? '" + require(' + JSON.stringify(loaderUtils.urlToRequest(cV.value, root)) + ') + "'
+				: cV.value;
+
+			return pV + url + hash + additional;
 		},"");
 	}) + ";";
-
 }
