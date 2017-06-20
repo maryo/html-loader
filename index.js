@@ -14,13 +14,13 @@ function randomIdent() {
 }
 
 function getLoaderConfig(context) {
-	var query = loaderUtils.parseQuery(context.query);
-	var configKey = query.config || 'htmlLoader';
+	var options = typeof context.query === 'object' ? context.query : loaderUtils.parseQuery(context.query);
+	var configKey = options.config || 'htmlLoader';
 	var config = context.options && context.options.hasOwnProperty(configKey) ? context.options[configKey] : {};
 
-	delete query.config;
+	delete options.config;
 
-	return assign(query, config);
+	return assign(options, config);
 }
 
 module.exports = function(content) {
