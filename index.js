@@ -14,13 +14,13 @@ function randomIdent() {
 }
 
 function getLoaderConfig(context) {
-	var options = typeof context.query === 'object' ? context.query : loaderUtils.parseQuery(context.query);
-	var configKey = options.config || 'htmlLoader';
+	var query = loaderUtils.getOptions(context) || {};
+	var configKey = query.config || 'htmlLoader';
 	var config = context.options && context.options.hasOwnProperty(configKey) ? context.options[configKey] : {};
 
-	delete options.config;
+	delete query.config;
 
-	return assign(options, config);
+	return assign(query, config);
 }
 
 module.exports = function(content) {
@@ -39,7 +39,14 @@ module.exports = function(content) {
 	}
 	var root = config.root;
 	var rawLinks = attrParse(content, function(tag, attr) {
-		return attributes.indexOf(tag + ":" + attr) >= 0;
+		var res = attributes.find(function(a) {
+			if (a.charAt(0) === ':') {
+				return attr === a.slice(1);
+			} else {
+				return (tag + ":" + attr) === a;
+			}
+		});
+		return !!res;
 	});
 	var links = [];
 	rawLinks.forEach(function (link) {
@@ -80,6 +87,15 @@ module.exports = function(content) {
 			}
 			return obj;
 		});
+
+		if (link.value.indexOf('mailto:') > -1 ) return;
+
+		var uri = url.parse(link.value);
+		if (uri.hash !== null && uri.hash !== undefined) {
+			uri.hash = null;
+			link.value = uri.format();
+			link.length = link.value.length;
+		}
 
 		do {
 			var ident = randomIdent();
@@ -147,6 +163,9 @@ module.exports = function(content) {
 	}
 
 	if(config.interpolate && config.interpolate !== 'require') {
+		// Double escape quotes so that they are not unescaped completely in the template string
+		content = content.replace(/\\"/g, "\\\\\"");
+		content = content.replace(/\\'/g, "\\\\\'");
 		content = compile('`' + content + '`').code;
 	} else {
 		content = JSON.stringify(content);
@@ -160,9 +179,9 @@ module.exports = function(content) {
         exportsString = "export default ";
 	}
 
-	return exportsString + content.replace(/xxxHTMLLINKxxx[0-9\.]+xxx/g, function(match) {
+ 	return exportsString + content.replace(/xxxHTMLLINKxxx[0-9\.]+xxx/g, function(match) {
 		if(!data[match]) return match;
-		return data[match].reduce(function (pV,cV, index, array) {
+		return data[match].reduce(function (pV, cV, index, array) {
 			var hash = cV.hash || "";
 			var additional = cV.additional.length != 0 ? " " + cV.additional.join(" ") : "";
 			if (index != array.length -1) {
@@ -171,7 +190,7 @@ module.exports = function(content) {
 
 			if (loaderUtils.isUrlRequest(cV.value, root)) {
 				var url = '" + function () { try { return require('
-					+ JSON.stringify(loaderUtils.urlToRequest(cV.value, root))
+					+ JSON.stringify(config.interpolate === 'require' ? cV.value : loaderUtils.urlToRequest(cV.value, root))
 					+ ') } catch (e) { return '
 					+ JSON.stringify(cV.value) + ' }}() + "';
 			} else {

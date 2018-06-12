@@ -29,6 +29,20 @@ describe("loader", function() {
 			'module.exports = "Text <script src=\\"" + require("./script.js") + "\\"><img src=\\"" + require("./image.png") + "\\">";'
 		);
 	});
+	it("should accept :attribute (empty tag) from query", function() {
+		loader.call({
+			query: "?attrs[]=:custom-src"
+		}, 'Text <custom-element custom-src="image1.png"><custom-img custom-src="image2.png"/></custom-element>').should.be.eql(
+			'module.exports = "Text <custom-element custom-src=\\"" + require("./image1.png") + "\\"><custom-img custom-src=\\"" + require("./image2.png") + "\\"/></custom-element>";'
+		);
+	});
+	it("should accept :attribute (empty tag) from query and not collide with similar attributes", function() {
+		loader.call({
+			query: "?attrs[]=:custom-src"
+		}, 'Text <custom-element custom-src="image1.png" custom-src-other="other.png"><custom-img custom-src="image2.png"/></custom-element>').should.be.eql(
+			'module.exports = "Text <custom-element custom-src=\\"" + require("./image1.png") + "\\" custom-src-other=\\"other.png\\"><custom-img custom-src=\\"" + require("./image2.png") + "\\"/></custom-element>";'
+		);
+	});
 	it("should not make bad things with templates", function() {
 		loader.call({}, '<h3>#{number} {customer}</h3>\n<p>   {title}   </p>').should.be.eql(
 			'module.exports = "<h3>#{number} {customer}</h3>\\n<p>   {title}   </p>";'
@@ -57,6 +71,40 @@ describe("loader", function() {
 			'module.exports = "<!-- comment --><h3 customattr=\\"\\">#{number} {customer}</h3><p>{title}</p><!-- comment --><img src=\" + require("./image.png") + \" />";'
 		);
 	});
+	it("should preserve escaped quotes", function() {
+		loader.call({}, '<script>{"json": "with \\"quotes\\" in value"}</script>').should.be.eql(
+			'module.exports = "<script>{\\\"json\\\": \\\"with \\\\\\\"quotes\\\\\\\" in value\\\"}</script>";'
+		);
+	})
+
+	it("should preserve comments and white spaces when minimizing (via webpack config property)", function() {
+		loader.call({
+			minimize: true,
+			options: {
+				htmlLoader: {
+					removeComments: false,
+					collapseWhitespace: false
+				}
+			}
+		}, '<!-- comment --><h3 customAttr="">#{number} {customer}</h3><p>{title}</p>    <!-- comment -->    <img src="image.png" />').should.be.eql(
+			'module.exports = "<!-- comment --><h3 customattr=\\"\\">#{number} {customer}</h3><p>{title}</p>    <!-- comment -->    <img src=\" + require("./image.png") + \" />";'
+		);
+	});
+
+	it("should preserve comments and white spaces when minizing (via webpack config property)", function() {
+		loader.call({
+			options: {
+				htmlLoader: {
+					minimize: true,
+					removeComments: false,
+					collapseWhitespace: false
+				}
+			}
+		}, '<!-- comment --><h3 customAttr="">#{number} {customer}</h3><p>{title}</p>    <!-- comment -->    <img src="image.png" />').should.be.eql(
+			'module.exports = "<!-- comment --><h3 customattr=\\"\\">#{number} {customer}</h3><p>{title}</p>    <!-- comment -->    <img src=\" + require("./image.png") + \" />";'
+		);
+	});
+
 	it("should treat attributes as case sensitive", function() {
 		loader.call({
 			minimize: true,
@@ -107,6 +155,11 @@ describe("loader", function() {
 			'module.exports = "<img src=\\"" + require("./icons.svg") + "#hash\\">";'
 		);
 	});
+	it("should ignore anchor with 'mailto:' in the href attribute", function() {
+		loader.call({}, '<a href="mailto:username@exampledomain.com"></a>').should.be.eql(
+			'module.exports = "<a href=\\"mailto:username@exampledomain.com\\"></a>";'
+		);
+	});
 	it("should ignore interpolations by default", function() {
 		loader.call({}, '<img src="${"Hello " + (1+1)}">').should.be.eql(
 			'module.exports = "<img src=\\"${\\"Hello \\" + (1+1)}\\">";'
@@ -119,6 +172,13 @@ describe("loader", function() {
 			'module.exports = "<img src=\\"" + ("Hello " + (1 + 1)) + "\\">";'
 		);
 	});
+	it("should not change handling of quotes when interpolation is enabled", function() {
+		loader.call({
+			query: "?interpolate"
+		}, '<script>{"json": "with \\"quotes\\" in value"}</script>').should.be.eql(
+			'module.exports = "<script>{\\\"json\\\": \\\"with \\\\\\\"quotes\\\\\\\" in value\\\"}</script>";'
+		);
+	})
 	it("should enable interpolations when using interpolate=require flag and only require function to be translate", function() {
 		loader.call({
 			query: "?interpolate=require"
