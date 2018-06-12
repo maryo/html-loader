@@ -171,16 +171,27 @@ module.exports = function(content) {
 		content = JSON.stringify(content);
 	}
 
-    var exportsString = "module.exports = ";
+	var exportsString = "module.exports = ";
 	if (config.exportAsDefault) {
-        exportsString = "exports.default = ";
+		exportsString = "exports.default = ";
 
 	} else if (config.exportAsEs6Default) {
-        exportsString = "export default ";
+		exportsString = "export default ";
 	}
 
- 	return exportsString + content.replace(/xxxHTMLLINKxxx[0-9\.]+xxx/g, function(match) {
-		if(!data[match]) return match;
+	var parametersString = '';
+
+	if (this.resourceQuery) {
+		var parameters = loaderUtils.parseQuery(this.resourceQuery);
+
+		Object.keys(parameters).forEach(function (parameter) {
+			parametersString += 'this[' + JSON.stringify(parameter) + '] = ' + JSON.stringify(parameters[parameter]) + ';';
+		});
+	}
+
+ 	return parametersString + exportsString + content.replace(/xxxHTMLLINKxxx[0-9\.]+xxx/g, function(match) {
+		if (!data[match]) return match;
+
 		return data[match].reduce(function (pV, cV, index, array) {
 			var hash = cV.hash || "";
 			var additional = cV.additional.length != 0 ? " " + cV.additional.join(" ") : "";
@@ -198,6 +209,6 @@ module.exports = function(content) {
 			}
 
 			return pV + url + hash + additional;
-		},"");
+		}, "");
 	}) + ";";
 }
